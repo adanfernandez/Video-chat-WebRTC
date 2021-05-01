@@ -9,8 +9,33 @@ document.addEventListener("DOMContentLoaded", function(event) {
     var callButton = document.getElementById("callButton");
     var hangupButton = document.getElementById("hangupButton");
     var video = document.getElementById("myVideo");
-
     var localPeerConnection, remotePeerConnection;
+    var remoteUsername = "";
+
+    var websocket = new WebSocket('ws:localhost:9002');
+    websocket.onmessage = function(message) {
+        console.log("Got message", message.data);
+        var data = JSON.parse(message.data);
+        switch (data.type) {
+            case "login":
+                onLogin(data.success);
+                break;
+            case "offer":
+                onOffer(data.offer, data.source);
+                break;
+            case "answer":
+                onAnswer(data.answer);
+                break;
+            case "candidate":
+                onCandidate(data.candidate);
+                break;
+            case "leave":
+                hangup();
+                break;
+            default:
+                break;
+        }
+    }
 
 
     //Just allow the user to click on the 'Start' button at start-up
@@ -35,6 +60,11 @@ document.addEventListener("DOMContentLoaded", function(event) {
         navigator.mediaDevices.getUserMedia(constraints)
             .then(successCallback)
             .catch(errorCallback);
+        var name = prompt("Please enter your name", "Name");
+        send({
+            type: "login",
+            source: name
+        });
     }
 
     //*********************************************************
@@ -45,6 +75,11 @@ document.addEventListener("DOMContentLoaded", function(event) {
 
         //First of all, disable the 'Call' button on the page
         callButton.disabled = true;
+
+        remoteUsername = document.getElementById("remoteUsername").value;
+        startingCallCommunication();
+        localPeerConnection.createOffer(
+            gotLocalDescription, onSignalingError);
 
         //...and enable the 'Hangup' button
         hangupButton.disabled = false;
@@ -132,4 +167,80 @@ document.addEventListener("DOMContentLoaded", function(event) {
     function errorCallback(error) {
         console.log("navigator.getUserMedia error: ", error);
     }
+
+    function onLogin(success) {
+        if (success === false) {
+            alert("Login unsuccessful, please try a different name.");
+        } else {
+            //First of all, disable the 'Start' button on the page
+            startButton.disabled = true;
+            navigator.getUserMedia(constraints, successCallback, errorCallback);
+        }
+    }
+
+    function onOffer(offer, source) {
+        startingCallCommunication();
+        remoteUsername = source;
+        localPeerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+        localPeerConnection.createAnswer(function(answer) {
+            localPeerConnection.setLocalDescription(answer);
+            send({
+                type: "answer",
+                answer: answer
+            });
+        }, function(error) {
+            alert("An error has occurred");
+        });
+    }
+
+    function onAnswer(answer) {
+        localPeerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+    };
+
+    function onCandidate(candidate) {
+        localPeerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    };
+
+    function startingCallCommunication() {
+        hangupButton.disabled = false;
+        if (typeof RTCPeerConnection == "undefined")
+            RTCPeerConnection = webkitRTCPeerConnection;
+        console.log("RTCPeerConnection: " + RTCPeerConnection);
+        var configuration = {
+            "iceServers": [{ "url": "stun:stun01.sipphone.com" }]
+        }
+        localPeerConnection = new RTCPeerConnection(configuration);
+        console.log("Created local peer connection object");
+        localPeerConnection.addStream(theStream);
+        console.log("Added localStream to localPeerConnection");
+        localPeerConnection.onicecandidate = gotLocalIceCandidate;
+        localPeerConnection.onaddstream = gotRemoteStream;
+    }
+
+    function send(message) {
+        if (remoteUsername.length > 0) {
+            message.target = remoteUsername;
+        }
+        websocket.send(JSON.stringify(message));
+    }
+
+    function getMedia(constraints) {
+        if (theStream) {
+            video.srcObject = null; //it does not release the hardware
+            theStream.getTracks().forEach(function(track) { //releases the hardware
+                track.stop();
+            });
+        }
+        navigator.mediaDevices.getUserMedia(constraints)
+            .then(successCallback)
+            .catch(errorCallback);
+    }
+
+
+    var websocket = new WebSocket('ws:localhost:9002');
+
+    websocket.onopen = function() {
+        console.log("Connected");
+    };
+
 });
