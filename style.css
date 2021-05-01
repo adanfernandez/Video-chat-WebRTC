@@ -1,0 +1,16 @@
+body {
+    background-color: gray;
+}
+
+#buttonsCall {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    font-size: 50px;
+}
+
+button {
+    font-size: 25px;
+    font-family: Verdana, Helvetica;
+    font-weight: bold;
+}
