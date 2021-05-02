@@ -11,8 +11,13 @@ document.addEventListener("DOMContentLoaded", function(event) {
     var video = document.getElementById("myVideo");
     var localPeerConnection, remotePeerConnection;
     var remoteUsername = "";
+    var theStream;
+
 
     var websocket = new WebSocket('ws:localhost:9002');
+    websocket.onopen = function() {
+        console.log("Connected");
+    };
     websocket.onmessage = function(message) {
         console.log("Got message", message.data);
         var data = JSON.parse(message.data);
@@ -78,8 +83,6 @@ document.addEventListener("DOMContentLoaded", function(event) {
 
         remoteUsername = document.getElementById("remoteUsername").value;
         startingCallCommunication();
-        localPeerConnection.createOffer(
-            gotLocalDescription, onSignalingError);
 
         //...and enable the 'Hangup' button
         hangupButton.disabled = false;
@@ -129,16 +132,20 @@ document.addEventListener("DOMContentLoaded", function(event) {
     }
 
     function gotLocalDescription(description) {
+        send({
+            type: "offer",
+            offer: description
+        });
         localPeerConnection.setLocalDescription(description);
         remotePeerConnection.setRemoteDescription(description);
         //Create the Answer to the received Offer based on the 'local' description
         remotePeerConnection.createAnswer(gotRemoteDescription, onSignalingError);
     }
 
-    function gotRemoteDescription(description) {
+    /*function gotRemoteDescription(description) {
         remotePeerConnection.setLocalDescription(description);
         localPeerConnection.setRemoteDescription(description);
-    }
+    }*/
 
     function gotLocalIceCandidate(event) {
         if (event.candidate) {
@@ -155,13 +162,15 @@ document.addEventListener("DOMContentLoaded", function(event) {
     //Handler to be called as soon as the remote stream becomes available
     function gotRemoteStream(event) {
         // Associate the remote video element with the retrieved stream
-        remoteVideo.src = window.URL.createObjectURL(event.stream);
+        remoteVideo.srcObject = event.stream;
         remoteVideo.play();
     }
 
     function successCallback(stream) {
+        theStream = stream;
         video.srcObject = stream;
         video.play();
+        callButton.disabled = false;
     }
 
     function errorCallback(error) {
@@ -237,10 +246,6 @@ document.addEventListener("DOMContentLoaded", function(event) {
     }
 
 
-    var websocket = new WebSocket('ws:localhost:9002');
 
-    websocket.onopen = function() {
-        console.log("Connected");
-    };
 
 });

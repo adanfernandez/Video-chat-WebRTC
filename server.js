@@ -101,6 +101,7 @@ wss.on('connection', function(connection) {
                     type: "error",
                     message: "Unrecognized command: " + data.type
                 });
+
                 break;
         }
     });
