@@ -139,7 +139,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
         localPeerConnection.setLocalDescription(description);
         remotePeerConnection.setRemoteDescription(description);
         //Create the Answer to the received Offer based on the 'local' description
-        remotePeerConnection.createAnswer(gotRemoteDescription, onSignalingError);
+        //        remotePeerConnection.createAnswer(gotRemoteDescription, onSignalingError);
     }
 
     /*function gotRemoteDescription(description) {
